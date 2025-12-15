@@ -6,43 +6,49 @@
       <p class="sub-motto">{{ randomMotto }}</p>
     </section>
 
-    <!-- 板块2: 今日复盘 -->
-    <section class="review-section">
-      <h2><span class="icon">📝</span> 今日复盘</h2>
-      <div class="review-form">
-        <div class="question">
-          <label>今天最有价值的一项产出是什么？</label>
-          <textarea v-model="newReview.output" rows="2" placeholder="哪怕只是修复了一个小bug..."></textarea>
+    <div class="sections-grid">
+      <section class="review-section">
+        <h2><span class="icon">📝</span> 今日复盘</h2>
+        <div class="review-form">
+          <div class="question">
+            <label>今天最有价值的一项产出是什么？</label>
+            <textarea v-model="newReview.output" rows="2" placeholder="哪怕只是修复了一个小bug..."></textarea>
+          </div>
+          <div class="question">
+            <label>今天主要的精力消耗在哪儿？</label>
+            <textarea v-model="newReview.drain" rows="2" placeholder="是某次会议，还是某个纠结的情绪？"></textarea>
+          </div>
+          <div class="question">
+            <label>今天，我对自己最满意的一点是什么？</label>
+            <textarea v-model="newReview.satisfaction" rows="2" placeholder="比如：即使很累，也开始了复盘..."></textarea>
+          </div>
+          <button class="submit-btn" @click="submitReview">完成复盘</button>
         </div>
-        <div class="question">
-          <label>今天主要的精力消耗在哪儿？</label>
-          <textarea v-model="newReview.drain" rows="2" placeholder="是某次会议，还是某个纠结的情绪？"></textarea>
-        </div>
-        <div class="question">
-          <label>今天，我对自己最满意的一点是什么？</label>
-          <textarea v-model="newReview.satisfaction" rows="2" placeholder="比如：即使很累，也开始了复盘..."></textarea>
-        </div>
-        <button class="submit-btn" @click="submitReview">完成复盘</button>
-      </div>
-    </section>
+      </section>
 
-    <!-- 板块3: 当下计划 -->
-    <section class="plan-section">
-      <h2><span class="icon">🎯</span> 当下计划</h2>
-      <div class="current-tasks">
-        <div class="task-card" v-for="task in currentTasks" :key="task.id">
-          <span class="task-title">{{ task.title }}</span>
-          <div class="task-actions">
-            <button class="btn-start" @click="startTask(task)">开始</button>
-            <button class="btn-complete" @click="completeTask(task)">完成</button>
+      <section class="plan-section">
+        <h2><span class="icon">🎯</span> 当下计划</h2>
+        <div class="current-tasks">
+          <div class="task-card" v-for="task in currentTasks" :key="task.id">
+            <span class="task-title">{{ task.title }}</span>
+            <div class="task-actions">
+              <button class="btn-start" @click="startTask(task)">开始</button>
+              <button class="btn-complete" @click="completeTask(task)">完成</button>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="quick-add">
-        <input v-model="newTask" type="text" placeholder="添加一项微型任务..." @keyup.enter="addQuickTask" />
-        <button @click="addQuickTask">添加</button>
-      </div>
-    </section>
+        <div class="quick-add">
+          <input v-model="newTask" type="text" placeholder="添加一项微型任务..." @keyup.enter="addQuickTask" />
+          <button @click="addQuickTask">添加</button>
+        </div>
+        <div class="toolbar">
+          <span class="status" :data-state="syncStatus">云同步：{{ syncStatus }}</span>
+          <button class="btn" @click="onExport">导出数据</button>
+          <label class="btn" for="importFile">导入数据</label>
+          <input id="importFile" type="file" accept="application/json" @change="onImport" />
+        </div>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -50,6 +56,9 @@
 import { ref, onMounted, computed } from 'vue'
 import { useReviewStore, type Review } from './stores/reviewStore'
 import { useTaskStore, type Task } from './stores/taskStore'
+import { exportData, importData } from './utils/backup'
+import { hasSupabase } from './lib/supabase'
+import { checkConnection } from './services/supabaseHealth'
 
 // 初始化Store
 const reviewStore = useReviewStore()
@@ -106,22 +115,57 @@ const addQuickTask = () => {
   }
 }
 
+const onExport = () => {
+  exportData()
+}
+
+const onImport = async (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) await importData(file, 'merge')
+  input.value = ''
+}
+
+const syncStatus = ref<'未配置' | '正常' | '错误'>('未配置')
+
 // 可选：初始化一些示例任务（第一次运行时）
 onMounted(() => {
   if (taskStore.tasks.length === 0) {
     taskStore.addTask('完善“刑天”页面布局')
     taskStore.addTask('学习K8s核心概念一小时')
   }
+  if (hasSupabase) {
+    reviewStore.syncRemote()
+    taskStore.syncRemote()
+    checkConnection().then(s => {
+      syncStatus.value = s === 'ok' ? '正常' : '错误'
+    })
+  } else {
+    syncStatus.value = '未配置'
+  }
 })
 </script>
 
 <style scoped>
 .container {
-  max-width: 800px;
+  max-width: 1000px;
   margin: 2rem auto;
   padding: 0 1.5rem;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
   color: #333;
+}
+
+.sections-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 920px) {
+  .sections-grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
 }
 
 /* 板块1：寄语 */
@@ -131,11 +175,13 @@ onMounted(() => {
   padding-bottom: 2rem;
   border-bottom: 2px solid #f0f0f0;
 }
+
 .main-motto {
   font-size: 2.2rem;
   margin-bottom: 0.5rem;
   color: #1a1a1a;
 }
+
 .sub-motto {
   font-size: 1.1rem;
   color: #666;
@@ -143,13 +189,15 @@ onMounted(() => {
 }
 
 /* 板块2：复盘 */
-.review-section, .plan-section {
+.review-section,
+.plan-section {
   margin-bottom: 3rem;
   background: #f9f9f9;
-  padding: 1.8rem;
+  padding: 1.4rem 1.6rem;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
 }
+
 h2 {
   display: flex;
   align-items: center;
@@ -158,31 +206,38 @@ h2 {
   margin-bottom: 1.5rem;
   color: #2c3e50;
 }
+
 .icon {
   font-size: 1.4em;
 }
+
 .review-form .question {
   margin-bottom: 1.5rem;
 }
+
 .review-form label {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 600;
   color: #444;
 }
+
 .review-form textarea {
   width: 100%;
-  padding: 0.8rem;
+  padding: 0.7rem 0.8rem;
   border: 1px solid #ddd;
   border-radius: 6px;
   font-size: 1rem;
-  transition: border-color 0.3s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   box-sizing: border-box;
 }
+
 .review-form textarea:focus {
   outline: none;
   border-color: #4a90e2;
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
 }
+
 .submit-btn {
   background-color: #4a90e2;
   color: white;
@@ -194,6 +249,7 @@ h2 {
   transition: background-color 0.3s;
   font-weight: 600;
 }
+
 .submit-btn:hover {
   background-color: #3a7bc8;
 }
@@ -208,11 +264,13 @@ h2 {
   margin-bottom: 1rem;
   border-radius: 8px;
   border-left: 4px solid #4a90e2;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
+
 .task-title {
   font-size: 1.05rem;
 }
+
 .task-actions button {
   margin-left: 0.8rem;
   padding: 0.4rem 1rem;
@@ -222,17 +280,21 @@ h2 {
   font-weight: 600;
   transition: all 0.2s;
 }
+
 .btn-start {
   background-color: #e8f4ff;
   color: #4a90e2;
 }
+
 .btn-start:hover {
   background-color: #d0e7ff;
 }
+
 .btn-complete {
   background-color: #4CAF50;
   color: white;
 }
+
 .btn-complete:hover {
   background-color: #43a047;
 }
@@ -242,6 +304,7 @@ h2 {
   gap: 0.8rem;
   margin-top: 1.5rem;
 }
+
 .quick-add input {
   flex-grow: 1;
   padding: 0.8rem;
@@ -249,6 +312,7 @@ h2 {
   border-radius: 6px;
   font-size: 1rem;
 }
+
 .quick-add button {
   background-color: #888;
   color: white;
@@ -257,7 +321,52 @@ h2 {
   border-radius: 6px;
   cursor: pointer;
 }
+
 .quick-add button:hover {
   background-color: #777;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.8rem;
+  margin: 1rem 0 0;
+}
+
+.toolbar input[type="file"] {
+  display: none;
+}
+
+.toolbar .btn {
+  background-color: #eee;
+  color: #333;
+  border: 1px solid #ddd;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.toolbar .btn:hover {
+  background-color: #e5e5e5;
+}
+
+.toolbar .status {
+  margin-right: auto;
+  align-self: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  color: #333;
+  background: #f5f5f5;
+}
+
+.toolbar .status[data-state="正常"] {
+  color: #167c2f;
+  background: #eaf6ea;
+}
+
+.toolbar .status[data-state="错误"] {
+  color: #a12a2a;
+  background: #fdeaea;
 }
 </style>

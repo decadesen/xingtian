@@ -1,6 +1,10 @@
 # 刑天
 
-This template should help get you started developing with Vue 3 in Vite.
+刑天是一个个人成长记录与复盘系统。当前版本聚焦：
+- 主页面包含今日寄语、每日复盘、当下计划
+- 本地持久化（localStorage）与可选 Supabase 云同步
+- JSON 数据导出/导入（合并/替换）
+- 双栏栅格布局优化、类型检查与单元测试
 
 ## Recommended IDE Setup
 
@@ -35,6 +39,23 @@ pnpm install
 pnpm dev
 ```
 
+打开 `http://localhost:5173/`，右上角工具栏可见“云同步：状态”。
+
+### Supabase（可选）
+- 在项目根目录创建 `.env`：
+
+```
+VITE_SUPABASE_URL=https://<你的项目ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<你的 anon 公钥>
+```
+
+- 在 Supabase SQL 编辑器执行 `.trae/documents/supabase-schema.sql`
+- 重启 `pnpm dev` 后，状态应为“正常”，新增复盘与任务会写入云端
+
+### 备份与恢复
+- 主页面工具栏支持“导出数据”与“导入数据”（JSON）
+- 导入默认合并同 ID 记录；如需覆盖，可在代码中切换为 `replace`
+
 ### Type-Check, Compile and Minify for Production
 
 ```sh
@@ -47,21 +68,7 @@ pnpm build
 pnpm test:unit
 ```
 
-### Run End-to-End Tests with [Cypress](https://www.cypress.io/)
-
-```sh
-pnpm test:e2e:dev
-```
-
-This runs the end-to-end tests against the Vite development server.
-It is much faster than the production build.
-
-But it's still recommended to test the production build with `test:e2e` before deploying (e.g. in CI environments):
-
-```sh
-pnpm build
-pnpm test:e2e
-```
+（E2E 测试暂未使用）
 
 ### Lint with [ESLint](https://eslint.org/)
 

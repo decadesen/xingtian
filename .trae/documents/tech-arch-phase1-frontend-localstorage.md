@@ -5,129 +5,59 @@ graph TD
     A[用户浏览器] --> B[Vue3前端应用]
     B --> C[Pinia状态管理]
     C --> D[LocalStorage存储]
-    
-    subgraph "前端层"
-        B
-        C
-        D
-    end
+    C --> E[(Supabase 可选云同步)]
 ```
 
 ## 2. 技术栈描述
 
-- **前端框架**: Vue3@3.4 + TypeScript@5
-- **状态管理**: Pinia@2.1
-- **构建工具**: Vite@5
-- **测试框架**: Vitest@1.0 + Cypress@13
-- **CSS框架**: 原生CSS + CSS变量
-- **代码规范**: ESLint@8 + Prettier@3
+- **前端框架**: Vue 3 + TypeScript
+- **状态管理**: Pinia
+- **构建工具**: Vite
+- **测试**: Vitest（已覆盖 stores 与 App 渲染）
+- **CSS**: 原生 CSS
+- **规范**: ESLint + Prettier
 
 ## 3. 路由定义
 
 | 路由 | 用途 |
 |------|------|
 | / | 主页面，包含今日寄语、每日复盘、当下计划 |
-| /history | 历史记录页，查看复盘和任务历史 |
-| /stats | 数据统计页，展示成长趋势和习惯分析 |
 
 ## 4. 状态管理架构
 
-### 4.1 ReviewStore - 复盘数据管理
+### 4.1 ReviewStore - 复盘数据管理（已实现）
 ```typescript
 // 核心方法
 - addReview(reviewData): 添加新的复盘记录
 - getReviewByDate(date): 按日期获取复盘记录
-- getReviewsByDateRange(start, end): 获取日期范围内的记录
-- exportReviews(): 导出所有复盘数据
+（范围查询与导出通过工具层实现）
 ```
 
-### 4.2 TaskStore - 任务数据管理
+### 4.2 TaskStore - 任务数据管理（已实现）
 ```typescript
 // 核心方法
 - addTask(title): 添加新任务
 - updateTaskStatus(id, completed): 更新任务状态
 - removeTask(id): 删除任务
 - getCurrentTasks(): 获取当前未完成任务
-- getCompletedTasks(): 获取已完成任务
+（已完成任务可通过过滤获得）
 ```
 
-### 4.3 StatsStore - 数据统计
-```typescript
-// 核心方法
-- getReviewFrequency(): 获取复盘频率统计
-- getTaskCompletionRate(): 获取任务完成率
-- getWeeklyProgress(): 获取周进度数据
-- getMonthlyHabits(): 获取月度习惯数据
-```
+（未实现，后续按需添加）
 
 ## 5. 组件架构
 
-### 5.1 页面组件
-```
-src/
-├── views/
-│   ├── HomeView.vue          // 主页面
-│   ├── HistoryView.vue       // 历史记录页
-│   └── StatsView.vue         // 数据统计页
-```
+当前直接使用 `App.vue` 作为主页面，无历史与统计页面。
 
-### 5.2 功能组件
-```
-├── components/
-│   ├── review/
-│   │   ├── ReviewForm.vue    // 复盘表单
-│   │   ├── ReviewList.vue    // 复盘列表
-│   │   └── ReviewCard.vue    // 复盘卡片
-│   ├── task/
-│   │   ├── TaskInput.vue     // 任务输入
-│   │   ├── TaskCard.vue      // 任务卡片
-│   │   └── TaskList.vue      // 任务列表
-│   ├── stats/
-│   │   ├── Chart.vue         // 图表组件
-│   │   ├── Heatmap.vue       // 热力图
-│   │   └── ProgressBar.vue   // 进度条
-│   └── common/
-│       ├── Motto.vue         // 今日寄语
-│       └── Navigation.vue    // 导航组件
-```
+当前所有功能由 `App.vue` 集成实现，表单与列表直接在页面内呈现。
 
 ## 6. 工具函数
 
-### 6.1 本地存储工具
-```typescript
-// utils/storage.ts
-export const storage = {
-  get<T>(key: string, defaultValue: T): T
-  set(key: string, value: any): void
-  remove(key: string): void
-  clear(): void
-  export(): string
-  import(data: string): void
-}
-```
+备份功能通过 `src/utils/backup.ts` 提供导出/导入 JSON（已实现）。
 
-### 6.2 日期处理工具
-```typescript
-// utils/date.ts
-export const dateUtil = {
-  format(date: Date, format: string): string
-  getToday(): string
-  getWeekRange(): [string, string]
-  getMonthRange(): [string, string]
-  isSameDay(date1: string, date2: string): boolean
-}
-```
+日期处理在 store 中直接使用 ISO 字符串，未抽象工具。
 
-### 6.3 数据统计工具
-```typescript
-// utils/stats.ts
-export const statsUtil = {
-  calculateFrequency(data: any[], dateField: string): Record<string, number>
-  calculateCompletionRate(completed: number, total: number): number
-  generateHeatmapData(data: any[], dateField: string): number[][]
-  calculateTrend(data: any[], valueField: string): number[]
-}
-```
+统计工具未实现。
 
 ## 7. 性能优化策略
 
@@ -141,10 +71,7 @@ export const statsUtil = {
 - 合理使用v-memo缓存静态内容
 - 实现组件级别的错误边界
 
-### 7.3 存储优化
-- 实现数据压缩，减少localStorage占用
-- 定期清理过期数据
-- 提供数据归档功能
+（未实现，后续按需优化）
 
 ## 8. 开发规范
 
@@ -154,19 +81,7 @@ export const statsUtil = {
 - 组件命名使用PascalCase
 - 组合式函数使用use前缀
 
-### 8.2 文件组织
-```
-src/
-├── assets/         // 静态资源
-├── components/     // 可复用组件
-├── composables/    // 组合式函数
-├── router/         // 路由配置
-├── stores/         // 状态管理
-├── types/          // TypeScript类型定义
-├── utils/          // 工具函数
-├── views/          // 页面组件
-└── __tests__/      // 测试文件
-```
+当前结构：`App.vue`、`stores/`、`services/`、`utils/`、`router/`（空）、`__tests__/`。
 
 ### 8.3 测试策略
 - 单元测试：覆盖所有工具函数和store
@@ -189,7 +104,4 @@ export default defineConfig({
 })
 ```
 
-### 9.2 部署选项
-- GitHub Pages：免费托管静态网站
-- Netlify/Vercel：自动化部署和CDN
-- 私有服务器：Nginx静态文件服务
+本地部署：`pnpm build` 后 `pnpm preview` 验证；云托管可按需选择。

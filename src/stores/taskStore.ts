@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import * as taskRepo from '../services/taskRepo'
+import { hasSupabase } from '../lib/supabase'
 
 export interface Task {
   id: number
@@ -26,6 +28,9 @@ export const useTaskStore = defineStore('task', () => {
     }
     tasks.value.push(newTask)
     saveTasks()
+    if (hasSupabase) {
+      taskRepo.insert(newTask)
+    }
     return newTask
   }
   
@@ -36,6 +41,9 @@ export const useTaskStore = defineStore('task', () => {
       task.completed = completed
       task.completedAt = completed ? new Date().toISOString() : undefined
       saveTasks()
+      if (hasSupabase) {
+        taskRepo.updateStatus(id, completed, task.completedAt)
+      }
     }
   }
   
@@ -45,6 +53,9 @@ export const useTaskStore = defineStore('task', () => {
     if (index > -1) {
       tasks.value.splice(index, 1)
       saveTasks()
+      if (hasSupabase) {
+        taskRepo.remove(id)
+      }
     }
   }
   
@@ -53,12 +64,22 @@ export const useTaskStore = defineStore('task', () => {
     return tasks.value.filter(t => !t.completed)
   }
   
+  async function syncRemote() {
+    if (!hasSupabase) return
+    const remote = await taskRepo.fetchAll()
+    if (remote) {
+      tasks.value = remote
+      saveTasks()
+    }
+  }
+  
   return { 
     tasks, 
     addTask, 
     updateTaskStatus, 
     removeTask,
-    getCurrentTasks
+    getCurrentTasks,
+    syncRemote
   }
 })
 
